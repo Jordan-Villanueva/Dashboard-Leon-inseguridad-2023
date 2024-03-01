@@ -89,7 +89,7 @@ for index, row in dissolved_gdf.iterrows():
     dissolved_gdf.at[index, 'RDV'] = total_rdv
     dissolved_gdf.at[index, 'RCV'] = total_rcv
 
-m = folium.Map(location=[21.1167, -101.6833], tiles='OpenStreetMap', zoom_start=10, attr="My Data attribution")
+m = folium.Map(location=[21.1167, -101.6833], tiles='OpenStreetMap', zoom_start=12, attr="My Data attribution")
 
 # Añadir el Choropleth para la variación de colores según la columna seleccionada
 selected_column = st.selectbox('Seleccionar tipo de robo: Robo a Casa Habitación (RACH), Robo a Negocio (RAN), Robo a Transeúnte (RAT), Robo de Vehículo (RDV) o Robo con Violencia (RCV)', ['RACH', 'RAN', 'RAT', 'RDV', 'RCV'], index=0)
@@ -114,11 +114,11 @@ for index, row in dissolved_gdf.iterrows():
     folium.CircleMarker(
         location=centroid_coordinates,
         popup=centroid_popup_text,
-        radius=2,
+        radius=0.1,
         color='blue',
         fill=True,
         fill_color='yellow',
-        fill_opacity=0.6
+        fill_opacity=0.1
     ).add_to(m)
 
 # Mostrar el mapa
