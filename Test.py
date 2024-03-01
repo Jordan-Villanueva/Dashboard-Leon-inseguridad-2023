@@ -98,11 +98,12 @@ Choropleth(
     data=dissolved_gdf,
     columns=['NOMASEN', selected_column],
     key_on='feature.properties.NOMASEN',
-    fill_color='YlOrRd',
-    fill_opacity=0.7,
-    line_opacity=0.1,
+    fill_color='plasma',  # Cambiar a 'viridis' u otro colormap de tu elección
+    fill_opacity=0.8,
+    line_opacity=0.01,
     legend_name=selected_column,
     highlight=True,
+    bins=30,  # Aumentar el número de bins
     tooltip=folium.GeoJsonTooltip(fields=['NOMASEN', selected_column], aliases=['NOMASEN', selected_column], localize=True, sticky=False)
 ).add_to(m)
 
@@ -114,7 +115,7 @@ for index, row in dissolved_gdf.iterrows():
     folium.CircleMarker(
         location=centroid_coordinates,
         popup=centroid_popup_text,
-        radius=0.1,
+        radius=1.5,
         color='blue',
         fill=True,
         fill_color='yellow',
@@ -126,4 +127,3 @@ folium_static(m)
 
 # Add citation
 st.markdown("Datos geograficos obtenidos de [INEGI](https://www.inegi.org.mx/app/ageeml/#) y datos de robos obtenidos del [Observatorio Ciudadano ](https://ocl.org.mx/mapa-ocl-org-mx/), de acuerdo a la Fiscalía General del Estado de Guanajuato y la Secretaría de Seguridad, Prevención y Protección Ciudadana")
-
