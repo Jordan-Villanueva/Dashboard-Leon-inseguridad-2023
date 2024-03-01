@@ -1,6 +1,7 @@
 import geopandas as gpd
 import folium
 from folium import Choropleth
+from folium.plugins import MarkerCluster
 from shapely import wkt
 from streamlit_folium import folium_static
 import pandas as pd
@@ -89,41 +90,51 @@ for index, row in dissolved_gdf.iterrows():
     dissolved_gdf.at[index, 'RDV'] = total_rdv
     dissolved_gdf.at[index, 'RCV'] = total_rcv
 
+# Configurar el mapa
 m = folium.Map(location=[21.1167, -101.6833], tiles='OpenStreetMap', zoom_start=12, attr="My Data attribution")
 
 # Añadir el Choropleth para la variación de colores según la columna seleccionada
-selected_column = st.selectbox('Seleccionar tipo de robo: Robo a Casa Habitación (RACH), Robo a Negocio (RAN), Robo a Transeúnte (RAT), Robo de Vehículo (RDV) o Robo con Violencia (RCV)', ['RACH', 'RAN', 'RAT', 'RDV', 'RCV'], index=0)
+selected_column_key = 'selected_column_key'  # Asigna un valor único a key
+selected_column = st.selectbox('Seleccionar tipo de robo: Robo a Casa Habitación (RACH), Robo a Negocio (RAN), Robo a Transeúnte (RAT), Robo de Vehículo (RDV) o Robo con Violencia (RCV)', ['RACH', 'RAN', 'RAT', 'RDV', 'RCV'], index=0, key=selected_column_key)
+
 Choropleth(
     geo_data=dissolved_gdf,
     data=dissolved_gdf,
     columns=['NOMASEN', selected_column],
     key_on='feature.properties.NOMASEN',
-    fill_color='plasma',  # Cambiar a 'viridis' u otro colormap de tu elección
+    fill_color='plasma',
     fill_opacity=0.8,
     line_opacity=0.01,
     legend_name=selected_column,
     highlight=True,
-    bins=30,  # Aumentar el número de bins
     tooltip=folium.GeoJsonTooltip(fields=['NOMASEN', selected_column], aliases=['NOMASEN', selected_column], localize=True, sticky=False)
 ).add_to(m)
 
+# Crear el cluster de marcadores
+marker_cluster = MarkerCluster().add_to(m)
+
+# Añadir marcadores para los centroides
 for index, row in dissolved_gdf.iterrows():
     centroid = row['geometry'].centroid
     centroid_coordinates = [centroid.y, centroid.x]
     centroid_popup_text = f"NOMASEN: {row['NOMASEN']}, {selected_column}: {row[selected_column]}"
 
-    folium.CircleMarker(
+    # Definir un marcador personalizado con icono de Font Awesome
+    icon = folium.Icon(color='teal', icon='circle', prefix='fa')
+    marker = folium.Marker(
         location=centroid_coordinates,
         popup=centroid_popup_text,
-        radius=1.5,
-        color='blue',
-        fill=True,
-        fill_color='yellow',
-        fill_opacity=0.1
-    ).add_to(m)
+        icon=icon
+    )
+
+    # Ajustar el tamaño del icono (puede experimentar con el parámetro 'icon_size')
+    marker.options.update({'icon_size': [10, 10]})
+
+    marker.add_to(marker_cluster)
 
 # Mostrar el mapa
 folium_static(m)
+
 
 # Add citation
 st.markdown("Datos geograficos obtenidos de [INEGI](https://www.inegi.org.mx/app/ageeml/#) y datos de robos obtenidos del [Observatorio Ciudadano ](https://ocl.org.mx/mapa-ocl-org-mx/), de acuerdo a la Fiscalía General del Estado de Guanajuato y la Secretaría de Seguridad, Prevención y Protección Ciudadana")
