@@ -9,7 +9,7 @@ import streamlit as st
 import ast
 import re
 
-# Cargar el GeoDataFrame desde el archivo CSV
+# Cargar GeoDataFrame
 def load_geo_data():
     result_gdf = pd.read_csv('final-df-Leon.csv')
     result_gdf = result_gdf.drop(columns={'Unnamed: 0'})
@@ -24,68 +24,42 @@ def load_geo_data():
         lambda x: ", ".join(ast.literal_eval(x)) if isinstance(x, str) else str(x))
     return dissolved_gdf
 
-# Cargar y preparar los datos de incidencias filtrando por trimestre
+# Cargar y procesar archivo del trimestre específico
 def load_enemar_data(selected_trimestre):
-    # Carga el archivo excel completo (con todas las fechas)
-    filename = 'Incidencias-completo.xlsx'  # Cambia por el nombre correcto del archivo si es necesario
+    filename = f'Incidencias-{selected_trimestre}.xlsx'
     enemar = pd.read_excel(filename)
 
-    # Renombrar columnas para distinguir los dos grupos de datos
+    # Renombrar columnas para distinguir las dos series
     enemar.columns = ['CP', 'COLONIA', 'RACH_1', 'RAN_1', 'RAT_1', 'RDV_1', 'RCV_1',
                       'RACH_2', 'RAN_2', 'RAT_2', 'RDV_2', 'RCV_2', 'FECHA']
 
-    # Convertir fecha a datetime
     enemar['FECHA'] = pd.to_datetime(enemar['FECHA'], errors='coerce')
+    enemar['COLONIA'] = enemar['COLONIA'].str.upper()
 
-    # Definir los rangos de fecha para cada trimestre
-    trimestres = {
-        'ENE-MAR': ('2023-01-01', '2023-03-31'),
-        'ABR-JUN': ('2023-04-01', '2023-06-30'),
-        'JUL-SEP': ('2023-07-01', '2023-09-30'),
-        'OCT-DIC': ('2023-10-01', '2023-12-31')
-    }
+    # Sumar columnas dobles
+    enemar['RACH'] = enemar['RACH_1'].fillna(0) + enemar['RACH_2'].fillna(0)
+    enemar['RAN'] = enemar['RAN_1'].fillna(0) + enemar['RAN_2'].fillna(0)
+    enemar['RAT'] = enemar['RAT_1'].fillna(0) + enemar['RAT_2'].fillna(0)
+    enemar['RDV'] = enemar['RDV_1'].fillna(0) + enemar['RDV_2'].fillna(0)
+    enemar['RCV'] = enemar['RCV_1'].fillna(0) + enemar['RCV_2'].fillna(0)
 
-    fecha_inicio, fecha_fin = trimestres[selected_trimestre]
-    fecha_inicio = pd.to_datetime(fecha_inicio)
-    fecha_fin = pd.to_datetime(fecha_fin)
-
-    # Filtrar por rango de fecha
-    enemar_trimestre = enemar[(enemar['FECHA'] >= fecha_inicio) & (enemar['FECHA'] <= fecha_fin)]
-
-    # Convertir COLONIA a mayúsculas para coincidencias
-    enemar_trimestre['COLONIA'] = enemar_trimestre['COLONIA'].str.upper()
-
-    # Sumar columnas de las dos series para cada tipo de robo
-    enemar_trimestre['RACH'] = enemar_trimestre['RACH_1'].fillna(0) + enemar_trimestre['RACH_2'].fillna(0)
-    enemar_trimestre['RAN'] = enemar_trimestre['RAN_1'].fillna(0) + enemar_trimestre['RAN_2'].fillna(0)
-    enemar_trimestre['RAT'] = enemar_trimestre['RAT_1'].fillna(0) + enemar_trimestre['RAT_2'].fillna(0)
-    enemar_trimestre['RDV'] = enemar_trimestre['RDV_1'].fillna(0) + enemar_trimestre['RDV_2'].fillna(0)
-    enemar_trimestre['RCV'] = enemar_trimestre['RCV_1'].fillna(0) + enemar_trimestre['RCV_2'].fillna(0)
-
-    # Agrupar por COLONIA y CP, sumando los delitos
-    suma_rach_por_colonia = enemar_trimestre.groupby(['COLONIA', 'CP'])[['RACH', 'RAN', 'RAT', 'RDV', 'RCV']].sum().reset_index()
+    # Agrupar y sumar por COLONIA y CP
+    suma_rach_por_colonia = enemar.groupby(['COLONIA', 'CP'])[['RACH', 'RAN', 'RAT', 'RDV', 'RCV']].sum().reset_index()
 
     # Excluir colonias no localizadas o foráneas
     suma_rach_por_colonia = suma_rach_por_colonia[~suma_rach_por_colonia['COLONIA'].isin(['ZONA NO LOCALIZADA', 'ZONA FORÁNEA'])]
 
     return suma_rach_por_colonia
 
-# Diseño de la aplicación
+# Diseño Streamlit
 st.title("Robos totales reportados ante FGE y SSPPC por trimestre y colonia en León durante 2023")
 
-# Configurar el mapa fuera de la función de caché
-m = folium.Map(location=[21.1167, -101.6833], tiles='OpenStreetMap', zoom_start=12, attr="My Data attribution")
-
-# Selector de trimestre
 selected_trimestre = st.selectbox('Seleccionar trimestre', ['ENE-MAR', 'ABR-JUN', 'JUL-SEP', 'OCT-DIC'], index=0, key='trimestre_selector')
 
-# Cargar datos geográficos
 dissolved_gdf = load_geo_data()
-
-# Cargar datos de robos filtrados por trimestre
 suma_rach_por_colonia = load_enemar_data(selected_trimestre)
 
-# Integrar datos de delitos en dissolved_gdf
+# Mapear datos de delitos al GeoDataFrame disuelto
 for index, row in dissolved_gdf.iterrows():
     nomasen_list = [item.strip("[]() ") for item in ast.literal_eval(row['NOMASEN'])]
     total_rach = total_ran = total_rat = total_rdv = total_rcv = 0
@@ -105,16 +79,15 @@ for index, row in dissolved_gdf.iterrows():
     dissolved_gdf.at[index, 'RDV'] = total_rdv
     dissolved_gdf.at[index, 'RCV'] = total_rcv
 
-# Asegurar que sean numéricos y rellenar NaN con 0
 for col in ['RACH','RAN','RAT','RDV','RCV']:
     dissolved_gdf[col] = pd.to_numeric(dissolved_gdf[col], errors='coerce').fillna(0)
 
-# Selección del tipo de robo para visualización
 selected_column = st.selectbox(
     'Seleccionar tipo de robo: Robo a Casa Habitación (RACH), Robo a Negocio (RAN), Robo a Transeúnte (RAT), Robo de Vehículo (RDV) o Robo con Violencia (RCV)', 
     ['RACH', 'RAN', 'RAT', 'RDV', 'RCV'], index=0, key='selected_column_key')
 
-# Funciones para crear mapa
+m = folium.Map(location=[21.1167, -101.6833], tiles='OpenStreetMap', zoom_start=12, attr="My Data attribution")
+
 def create_choropleth(dissolved_gdf, selected_column):
     gdf = dissolved_gdf.copy()
     gdf['NOMASEN_STR'] = gdf['NOMASEN_STR'].astype(str)
@@ -153,14 +126,11 @@ def create_marker_cluster(dissolved_gdf, selected_column):
         marker = folium.Marker(location=centroid_coordinates, popup=popup_text, icon=icon)
         marker.add_to(marker_cluster)
 
-# Crear visualizaciones en el mapa
 create_choropleth(dissolved_gdf, selected_column)
 create_marker_cluster(dissolved_gdf, selected_column)
 
-# Mostrar el mapa en Streamlit
 folium_static(m)
 
-# Agregar cita de datos
 st.markdown("""
 Datos geográficos obtenidos de [INEGI](https://www.inegi.org.mx/app/ageeml/#) y datos de robos obtenidos del [Observatorio Ciudadano](https://ocl.org.mx/mapa-ocl-org-mx/), de acuerdo a la Fiscalía General del Estado de Guanajuato y la Secretaría de Seguridad, Prevención y Protección Ciudadana.
 """)
