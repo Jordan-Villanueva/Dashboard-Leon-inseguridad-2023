@@ -29,6 +29,8 @@ def load_geo_data():
     # Dissolver polígonos basados en el identificador 'NOMASEN'
     # excepto cuando el 'NOMASEN' es cero
     dissolved_gdf = result_gdf.dissolve(by='NOMASEN', aggfunc='first').reset_index()
+    dissolved_gdf['NOMASEN_STR'] = dissolved_gdf['NOMASEN'].apply(
+    lambda x: ", ".join(ast.literal_eval(x)) if isinstance(x, str) else str(x))
     
     return dissolved_gdf
 
@@ -51,15 +53,14 @@ def create_choropleth(dissolved_gdf, selected_column):
     Choropleth(
         geo_data=dissolved_gdf,
         data=dissolved_gdf,
-        columns=['NOMASEN', selected_column],
-        key_on='feature.properties.NOMASEN',
+        columns=['NOMASEN_STR', selected_column],
+        key_on='feature.properties.NOMASEN_STR',
         fill_color='plasma',
         fill_opacity=0.8,
         line_opacity=0.01,
         legend_name=selected_column,
         highlight=True,
-        tooltip=folium.GeoJsonTooltip(fields=['NOMASEN', selected_column], aliases=['NOMASEN', selected_column], localize=True, sticky=False)
-    ).add_to(m)
+        tooltip=folium.GeoJsonTooltip(fields=['NOMASEN_STR', selected_column], aliases=['Colonias', selected_column], localize=True, sticky=False)    ).add_to(m)
     
 # Añadir marcadores para los centroides
 def create_marker_cluster(dissolved_gdf, selected_column):
@@ -68,8 +69,7 @@ def create_marker_cluster(dissolved_gdf, selected_column):
     for index, row in dissolved_gdf.iterrows():
         centroid = row['geometry'].centroid
         centroid_coordinates = [centroid.y, centroid.x]
-        centroid_popup_text = f"NOMASEN: {row['NOMASEN']}, {selected_column}: {row[selected_column]}"
-    
+        centroid_popup_text = f"Colonias: {row['NOMASEN_STR']}, {selected_column}: {row[selected_column]}"    
         # Definir un marcador personalizado con icono de Font Awesome
         icon = folium.Icon(color='teal', icon='circle', prefix='fa')
         marker = folium.Marker(
@@ -139,6 +139,8 @@ for index, row in dissolved_gdf.iterrows():
     dissolved_gdf.at[index, 'RDV'] = total_rdv
     dissolved_gdf.at[index, 'RCV'] = total_rcv
 
+for col in ['RACH','RAN','RAT','RDV','RCV']:
+    dissolved_gdf[col] = pd.to_numeric(dissolved_gdf[col], errors='coerce').fillna(0)
 # Añadir el Choropleth para la variación de colores según la columna seleccionada
 selected_column_key = 'selected_column_key'  # Asigna un valor único a key
 selected_column = st.selectbox('Seleccionar tipo de robo: Robo a Casa Habitación (RACH), Robo a Negocio (RAN), Robo a Transeúnte (RAT), Robo de Vehículo (RDV) o Robo con Violencia (RCV)', ['RACH', 'RAN', 'RAT', 'RDV', 'RCV'], index=0, key=selected_column_key)
