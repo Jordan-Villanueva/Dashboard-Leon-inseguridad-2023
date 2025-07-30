@@ -6,3 +6,4 @@ streamlit==0.89.0
 streamlit-folium==0.4.0
 openpyxl
 protobuf<=3.20.3
+shapely
