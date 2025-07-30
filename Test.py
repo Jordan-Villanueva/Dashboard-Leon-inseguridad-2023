@@ -69,19 +69,21 @@ def create_marker_cluster(dissolved_gdf, selected_column):
     for index, row in dissolved_gdf.iterrows():
         centroid = row['geometry'].centroid
         centroid_coordinates = [centroid.y, centroid.x]
-        centroid_popup_text = f"Colonias: {row['NOMASEN_STR']}, {selected_column}: {row[selected_column]}"    
-        # Definir un marcador personalizado con icono de Font Awesome
+        
+        # Obtener el valor numérico del delito
+        delito_valor = int(row[selected_column]) if pd.notna(row[selected_column]) else 0
+
+        centroid_popup_text = f"Colonias: {row['NOMASEN_STR']}<br>{selected_column}: {delito_valor}"
+    
+        # Definir un marcador personalizado
         icon = folium.Icon(color='teal', icon='circle', prefix='fa')
         marker = folium.Marker(
             location=centroid_coordinates,
             popup=centroid_popup_text,
             icon=icon
         )
-    
-        # Ajustar el tamaño del icono (puede experimentar con el parámetro 'icon_size')
-        marker.options.update({'icon_size': [10, 10]})
-    
         marker.add_to(marker_cluster)
+
 
 # Obtener el nombre del archivo según el trimestre seleccionado
 selected_trimestre = st.selectbox('Seleccionar trimestre', ['ENE-MAR', 'ABR-JUN', 'JUL-SEP', 'OCT-DIC'], index=0, key='trimestre_selector')
