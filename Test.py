@@ -50,18 +50,40 @@ def load_enemar_data(selected_trimestre):
 
 # Añadir el Choropleth para la variación de colores según la columna seleccionada
 def create_choropleth(dissolved_gdf, selected_column):
-    Choropleth(
-        geo_data=dissolved_gdf,
-        data=dissolved_gdf,
-        columns=['NOMASEN_STR', selected_column],
-        key_on='feature.properties.NOMASEN_STR',
+    # Crear una copia para no modificar el original
+    gdf = dissolved_gdf.copy()
+    
+    # Aseguramos que la columna de unión sea string
+    gdf['NOMASEN_STR'] = gdf['NOMASEN_STR'].astype(str)
+    
+    # Choropleth principal para los colores
+    choropleth = Choropleth(
+        geo_data=gdf,
+        data=gdf,
+        columns=['NOMASEN_STR', selected_column],   # clave y valor
+        key_on='feature.properties.NOMASEN_STR',    # Debe coincidir con columns
         fill_color='plasma',
         fill_opacity=0.8,
         line_opacity=0.01,
         legend_name=selected_column,
-        highlight=True,
-        tooltip=folium.GeoJsonTooltip(fields=['NOMASEN_STR', selected_column], aliases=['Colonias', selected_column], localize=True, sticky=False)    ).add_to(m)
-    
+        highlight=True
+    )
+    choropleth.add_to(m)
+
+    # Tooltip separado para mostrar colonias y el delito seleccionado
+    folium.GeoJson(
+        gdf,
+        name="Colonias",
+        style_function=lambda x: {"fillOpacity": 0, "color": "transparent"},  # invisible
+        tooltip=folium.GeoJsonTooltip(
+            fields=['NOMASEN_STR', selected_column],
+            aliases=['Colonias', selected_column],
+            localize=True,
+            sticky=False
+        )
+    ).add_to(m)
+
+
 # Añadir marcadores para los centroides
 def create_marker_cluster(dissolved_gdf, selected_column):
     marker_cluster = MarkerCluster().add_to(m)
