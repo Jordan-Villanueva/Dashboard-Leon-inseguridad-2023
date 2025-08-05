@@ -25,39 +25,37 @@ def load_geo_data():
     return dissolved_gdf
 
 # Cargar y procesar archivo del trimestre específico
-def load_enemar_data(selected_trimestre):
-    filename = f'Incidencias-{selected_trimestre}-2023.xlsx'
+def load_enemar_data(selected_trimestre, selected_year):
+    filename = f'Incidencias-{selected_trimestre}-{selected_year}.xlsx'
     enemar = pd.read_excel(filename)
 
-    # Renombrar columnas para distinguir las dos series
     enemar.columns = ['CP', 'COLONIA', 'RACH_1', 'RAN_1', 'RAT_1', 'RDV_1', 'RCV_1',
                       'RACH_2', 'RAN_2', 'RAT_2', 'RDV_2', 'RCV_2', 'FECHA']
 
     enemar['FECHA'] = pd.to_datetime(enemar['FECHA'], errors='coerce')
     enemar['COLONIA'] = enemar['COLONIA'].str.upper()
 
-    # Sumar columnas dobles
     enemar['RACH'] = enemar['RACH_1'].fillna(0) + enemar['RACH_2'].fillna(0)
     enemar['RAN'] = enemar['RAN_1'].fillna(0) + enemar['RAN_2'].fillna(0)
     enemar['RAT'] = enemar['RAT_1'].fillna(0) + enemar['RAT_2'].fillna(0)
     enemar['RDV'] = enemar['RDV_1'].fillna(0) + enemar['RDV_2'].fillna(0)
     enemar['RCV'] = enemar['RCV_1'].fillna(0) + enemar['RCV_2'].fillna(0)
 
-    # Agrupar y sumar por COLONIA y CP
     suma_rach_por_colonia = enemar.groupby(['COLONIA', 'CP'])[['RACH', 'RAN', 'RAT', 'RDV', 'RCV']].sum().reset_index()
-
-    # Excluir colonias no localizadas o foráneas
-    suma_rach_por_colonia = suma_rach_por_colonia[~suma_rach_por_colonia['COLONIA'].isin(['ZONA NO LOCALIZADA', 'ZONA FORÁNEA'])]
-
+    suma_rach_por_colonia = suma_rach_por_colonia[
+        ~suma_rach_por_colonia['COLONIA'].isin(['ZONA NO LOCALIZADA', 'ZONA FORÁNEA'])
+    ]
     return suma_rach_por_colonia
 
 # Diseño Streamlit
-st.title("Robos totales reportados ante FGE y SSPPC por trimestre y colonia en León durante 2023")
+st.title("Robos totales reportados ante FGE y SSPPC por trimestre y colonia en León")
 
+selected_year = st.selectbox('Seleccionar año', [2023, 2024, 2025], index=0, key='year_selector')
 selected_trimestre = st.selectbox('Seleccionar trimestre', ['ENE-MAR', 'ABR-JUN', 'JUL-SEP', 'OCT-DIC'], index=0, key='trimestre_selector')
+suma_rach_por_colonia = load_enemar_data(selected_trimestre, selected_year)
 
+# --- Cargar datos ---
 dissolved_gdf = load_geo_data()
-suma_rach_por_colonia = load_enemar_data(selected_trimestre)
 
 # Mapear datos de delitos al GeoDataFrame disuelto
 for index, row in dissolved_gdf.iterrows():
