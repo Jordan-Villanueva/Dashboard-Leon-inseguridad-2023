@@ -26,7 +26,7 @@ def load_geo_data():
 
 # Cargar y procesar archivo del trimestre específico
 def load_enemar_data(selected_trimestre):
-    filename = f'Incidencias-{selected_trimestre}.xlsx'
+    filename = f'Incidencias-{selected_trimestre}-2023.xlsx'
     enemar = pd.read_excel(filename)
 
     # Renombrar columnas para distinguir las dos series
