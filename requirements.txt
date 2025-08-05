@@ -11,3 +11,5 @@ openpyxl
 protobuf<=3.20.3
 shapely
 fiona>=1.9
+shapely>=2.0
+pyproj>=3.6
